@@ -77,9 +77,10 @@ public class ClickHouseConfigValidator {
             JdbcConnectConfig jdbcConfig = JdbcConnectConfig.initCkConnectConfig(props.get(CLICKHOUSE_HOSTS.getName()),
                     props.get(CLICKHOUSE_JDBC_PORT.getName()), props.get(CLICKHOUSE_JDBC_USER.getName()),
                     props.get(CLICKHOUSE_JDBC_PASSWORD.getName()));
-            JdbcDataSource dataSource = new JdbcDataSource(jdbcConfig);
-            String database = props.get(CLICKHOUSE_SINK_DATABASE.getName());
+            JdbcDataSource dataSource = null;
             try {
+                dataSource = new JdbcDataSource(jdbcConfig);
+                String database = props.get(CLICKHOUSE_SINK_DATABASE.getName());
                 databaseValidate(databaseConfig, dataSource, database);
                 if (databaseConfig.errorMessages().isEmpty()) {
                     // 表校验
@@ -87,13 +88,12 @@ public class ClickHouseConfigValidator {
                     // 字段校验
                     sinkColumnValidate(configMap, props, dataSource, database);
                 }
-            } catch (Exception e) {
-                logger.error("校验ClickHouse连接失败: ", e);
-                hostConfig.addErrorMessage("连接ClickHouse失败, " + e.getMessage());
-                try {
+            } catch (SQLException e) {
+                logger.error("创建ClickHouse连接失败, ", e);
+                throw new ConfigException(e.getMessage());
+            } finally {
+                if (dataSource != null) {
                     dataSource.close();
-                } catch (SQLException e1) {
-                    logger.error("关闭ClickHouse连接失败: ", e1);
                 }
             }
         }

@@ -59,7 +59,12 @@ public class JsonSinkClickHouseTask extends SinkTask {
         database = props.get(CLICKHOUSE_SINK_DATABASE.getName());
         JdbcConnectConfig connectConfig = JdbcConnectConfig.initCkConnectConfig(hosts, port, user, password);
         // 初始化与 ClickHouse 连接
-        dataSource = new JdbcDataSource(connectConfig);
+        try {
+            dataSource = new JdbcDataSource(connectConfig);
+        } catch (SQLException e) {
+            logger.error("创建ClickHouse连接失败, ", e);
+            throw new ConfigException(e.getMessage());
+        }
         String table = props.get(CLICKHOUSE_SINK_TABLES.getName());
         String localTable = props.get(CLICKHOUSE_SINK_LOCAL_TABLES.getName());
         String sinkDateCol = props.get(CLICKHOUSE_SINK_DATE_COLUMNS.getName());
@@ -105,12 +110,8 @@ public class JsonSinkClickHouseTask extends SinkTask {
     @Override
     public void stop() {
         if (dataSource != null) {
-            try {
-                dataSource.close();
-                logger.info("关闭ClickHouse连接成功");
-            } catch (SQLException e) {
-                logger.error("关闭ClickHouse连接失败, ", e);
-            }
+            dataSource.close();
+            logger.info("关闭ClickHouse连接成功");
         }
     }
 
